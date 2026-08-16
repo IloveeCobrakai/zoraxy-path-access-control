@@ -1,0 +1,111 @@
+name: Build and Publish
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.get-current-version.outputs.version }}
+      release: ${{ steps.get-release-version.outputs.release }}
+    name: Build
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v4
+        with:
+          go-version: '1.25'
+
+      - name: Build
+        run: go build
+
+      - name: "Read file contents"
+        id: read_file
+        uses: satya-500/read-file-github-action@v1.0.0
+        with:
+          path: "main.go"
+
+      - uses: actions-ecosystem/action-regex-match@v2.0.2
+        id: get-major-version
+        with:
+          text: ${{ steps.read_file.outputs.contents }}
+          regex: 'VersionMajor:\s*([^,]*)'
+          flags: gm
+
+      - uses: actions-ecosystem/action-regex-match@v2.0.2
+        id: get-minor-version
+        with:
+          text: ${{ steps.read_file.outputs.contents }}
+          regex: 'VersionMinor:\s*([^,]*)'
+          flags: gm
+
+      - uses: actions-ecosystem/action-regex-match@v2.0.2
+        id: get-build-version
+        with:
+          text: ${{ steps.read_file.outputs.contents }}
+          regex: 'VersionPatch:\s*([^,]*)'
+          flags: gm
+
+      - name: Get Current Version
+        id: get-current-version
+        run: echo "version=v${{ steps.get-major-version.outputs.group1 }}.${{ steps.get-minor-version.outputs.group1 }}.${{ steps.get-build-version.outputs.group1 }}" >> "$GITHUB_OUTPUT"
+
+      - name: Get Release version
+        id: get-release-version
+        uses: pozetroninc/github-action-get-latest-release@master
+        with:
+          repository: ${{ github.repository }}
+
+  createRelease:
+    needs: build
+    runs-on: ubuntu-latest
+    name: Build and Create Release
+    if: ${{needs.build.outputs.version != needs.build.outputs.release}}
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v4
+        with:
+          go-version: '1.25'
+
+      - name: Build (zoraxy-path-access-control_linux_386)
+        run: CGO_ENABLED=0 GOOS=linux GOARCH=386 go build -o ./build/zoraxy-path-access-control_linux_386
+
+      - name: Build (zoraxy-path-access-control_linux_amd64)
+        run: CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -o ./build/zoraxy-path-access-control_linux_amd64
+
+      - name: Build (zoraxy-path-access-control_linux_arm)
+        run: CGO_ENABLED=0 GOOS=linux GOARCH=arm go build -o ./build/zoraxy-path-access-control_linux_arm
+
+      - name: Build (zoraxy-path-access-control_linux_arm64)
+        run: CGO_ENABLED=0 GOOS=linux GOARCH=arm64 go build -o ./build/zoraxy-path-access-control_linux_arm64
+
+      - name: Build (zoraxy-path-access-control_linux_mipsle)
+        run: CGO_ENABLED=0 GOOS=linux GOARCH=mipsle go build -o ./build/zoraxy-path-access-control_linux_mipsle
+
+      - name: Build (zoraxy-path-access-control_linux_riscv64)
+        run: CGO_ENABLED=0 GOOS=linux GOARCH=riscv64 go build -o ./build/zoraxy-path-access-control_linux_riscv64
+
+      - name: Build (zoraxy-path-access-control_windows_amd64exe)
+        run: CGO_ENABLED=0 GOOS=windows GOARCH=amd64 go build -o ./build/zoraxy-path-access-control_windows_amd64.exe
+
+      - name: Generate tag
+        continue-on-error: true
+        uses: rickstaa/action-create-tag@v1
+        id: "tag_create"
+        with:
+          tag: "${{needs.build.outputs.version}}"
+          message: "Latest release"
+
+      - name: Generate Release
+        uses: ncipollo/release-action@v1
+        with:
+          skipIfReleaseExists: true
+          artifacts: "./build/*"
+          tag: "${{needs.build.outputs.version}}"
