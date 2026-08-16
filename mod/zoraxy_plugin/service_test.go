@@ -210,6 +210,9 @@ func TestSpecMatchesRepositoryMetadata(t *testing.T) {
 	if spec.ID != PluginID || spec.URL != "https://github.com/IloveeCobrakai/zoraxy-path-access-control" {
 		t.Fatalf("unexpected plugin metadata: %#v", spec)
 	}
+	if spec.AuthorContact != "https://github.com/IloveeCobrakai" {
+		t.Fatalf("unexpected author contact: %q", spec.AuthorContact)
+	}
 }
 
 func BenchmarkMatchRule(b *testing.B) {

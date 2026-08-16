@@ -32,7 +32,7 @@ protecting sensitive areas such as `https://example.com/admin/*`.
 ## Install
 
 Download the binary for your platform from the
-[latest release](https://github.com/kianby/zoraxy-path-access-control/releases/latest)
+[latest release](https://github.com/IloveeCobrakai/zoraxy-path-access-control/releases/latest)
 and rename it to `path-access-control` (`path-access-control.exe` on Windows).
 Place the binary and `icon.png` together in a directory scanned by Zoraxy's
 plugin manager.
@@ -137,15 +137,13 @@ API key with the same care as the main Zoraxy installation.
 
 ## Releases
 
-The GitHub Actions workflow runs formatting checks, `go vet`, tests and the Go
-race detector for pushes and pull requests. Tags matching `v*` additionally
-produce stripped Linux and Windows binaries plus `SHA256SUMS`, then publish a
-GitHub release. For example:
-
-```sh
-git tag v1.0.0
-git push origin v1.0.0
-```
+The GitHub Actions workflow runs `go vet`, tests and the Go race detector for
+pushes to `main` and manual runs. If the version declared in `.introspect` does
+not have a release yet, the workflow produces stripped Linux and Windows
+binaries plus `SHA256SUMS` and publishes a GitHub release. Release asset names
+follow Zoraxy's `{pluginID}_{os}_{arch}` convention. To publish a new release,
+update the version in `.introspect` and the plugin specification, then push the
+change to `main`.
 
 ## License
 
