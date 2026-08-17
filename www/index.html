@@ -1,0 +1,169 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="zoraxy.csrf.Token" content="{{.csrfToken}}">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="stylesheet" href="/script/semantic/semantic.min.css">
+    <link rel="stylesheet" href="/main.css">
+    <script src="/script/jquery-3.6.0.min.js"></script>
+    <script src="/script/semantic/semantic.min.js"></script>
+    <title>Path Access Control</title>
+</head>
+<body>
+    <link rel="stylesheet" href="/darktheme.css">
+    <script src="/script/darktheme.js"></script>
+
+    <div class="standardContainer">
+        <div class="ui basic segment">
+            <h2>Path Access Control</h2>
+            <p>Assign an existing access rule to a path on an HTTP proxy host. Rules are evaluated from top to bottom.</p>
+        </div>
+
+        <div class="ui basic segment">
+            <div class="ui form">
+                <div class="three fields">
+                    <div class="field">
+                        <label>HTTP Proxy Host</label>
+                        <div class="ui selection fluid dropdown" id="hostSelector">
+                            <input type="hidden" name="host" value="">
+                            <i class="dropdown icon"></i>
+                            <div class="default text">Select an HTTP proxy host</div>
+                            <div class="menu" id="hostList"></div>
+                        </div>
+                    </div>
+                    <div class="field">
+                        <label for="path">Path pattern</label>
+                        <input id="path" type="text" placeholder="/admin/*" maxlength="2048" autocomplete="off">
+                    </div>
+                    <div class="field">
+                        <label>Access Rule</label>
+                        <div class="ui selection fluid dropdown" id="accessRuleSelector">
+                            <input type="hidden" name="targetAccessRule" value="">
+                            <i class="dropdown icon"></i>
+                            <div class="default text">Select an access rule</div>
+                            <div class="menu" id="accessRuleList"></div>
+                        </div>
+                        <small id="ruleHint"></small>
+                    </div>
+                </div>
+                <button type="button" class="ui basic button" onclick="addRule()">
+                    <i class="green add icon"></i> Add Rule
+                </button>
+            </div>
+        </div>
+
+        <div class="ui basic segment">
+            <table class="ui very compact celled table">
+                <thead><tr><th>Host</th><th>Path pattern</th><th>Access rule</th><th>Actions</th></tr></thead>
+                <tbody id="rulesTable"></tbody>
+            </table>
+            <span id="message"></span>
+        </div>
+    </div>
+
+    <script>
+        const csrfToken = document.querySelector('meta[name="zoraxy.csrf.Token"]').content;
+        let state = { rules: [], access: [], hosts: [] };
+
+        function escapeHTML(value) {
+            const node = document.createElement('span');
+            node.textContent = value || '';
+            return node.innerHTML;
+        }
+
+        function ruleIcon(rule) {
+            if (!rule) return 'ui grey filter icon';
+            if (rule.ID === 'default') return 'ui yellow star icon';
+            if (rule.BlacklistEnabled && !rule.WhitelistEnabled) return 'ui red filter icon';
+            if (rule.WhitelistEnabled && !rule.BlacklistEnabled) return 'ui green filter icon';
+            return 'ui grey filter icon';
+        }
+
+        function selectedValue(selector) {
+            return $(selector).dropdown('get value') || document.querySelector(selector + ' input').value;
+        }
+
+        function renderDropdowns() {
+            $('#hostList').html(state.hosts.map(host =>
+                '<div class="item" data-value="' + escapeHTML(host) + '">' + escapeHTML(host) + '</div>'
+            ).join(''));
+            $('#accessRuleList').html(state.access.map(rule =>
+                '<div class="item" data-value="' + escapeHTML(rule.ID) + '"><i class="' + ruleIcon(rule) + '"></i>' + escapeHTML(rule.Name) + '</div>'
+            ).join(''));
+
+            $('#hostSelector').dropdown('destroy').dropdown();
+            $('#accessRuleSelector').dropdown('destroy').dropdown({ onChange: updateRuleHint });
+            if (state.access.length > 0) {
+                $('#accessRuleSelector').dropdown('set selected', state.access[0].ID);
+            }
+            updateRuleHint();
+        }
+
+        function updateRuleHint() {
+            const rule = state.access.find(item => item.ID === selectedValue('#accessRuleSelector'));
+            $('#ruleHint').text(rule ? (rule.Desc || '') : '');
+        }
+
+        function renderRules() {
+            $('#rulesTable').html(state.rules.map((rule, index) => {
+                const access = state.access.find(item => item.ID === rule.rule_id) || { Name: rule.rule_id };
+                return '<tr><td>' + escapeHTML(rule.host) + '</td><td>' + escapeHTML(rule.path) + '</td><td><i class="' + ruleIcon(access) + '"></i>' + escapeHTML(access.Name) + '</td><td><button type="button" class="ui basic mini circular icon button" onclick="removeRule(' + index + ')" title="Remove"><i class="red trash icon"></i></button></td></tr>';
+            }).join(''));
+        }
+
+        function addRule() {
+            const host = selectedValue('#hostSelector');
+            const path = $('#path').val().trim();
+            const ruleID = selectedValue('#accessRuleSelector');
+            if (!host || !path || !ruleID) {
+                $('#message').text('Select a host and access rule, then enter a path pattern.');
+                return;
+            }
+            const previousRules = state.rules.slice();
+            state.rules.push({ host: host, path: path, rule_id: ruleID });
+            renderRules();
+            persistRules(previousRules, 'Rule added.');
+        }
+
+        function removeRule(index) {
+            const previousRules = state.rules.slice();
+            state.rules.splice(index, 1);
+            renderRules();
+            persistRules(previousRules, 'Rule removed.');
+        }
+
+        async function persistRules(previousRules, successMessage) {
+            try {
+                const response = await fetch('api/rules', {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json', 'X-CSRF-Token': csrfToken },
+                    body: JSON.stringify(state.rules)
+                });
+                if (!response.ok) throw Error(await response.text());
+                $('#message').text(successMessage);
+                $('#path').val('');
+            } catch (error) {
+                state.rules = previousRules;
+                renderRules();
+                $('#message').text('Error: ' + error.message);
+            }
+        }
+
+        async function load() {
+            const response = await fetch('api/rules', { cache: 'no-store' });
+            if (!response.ok) throw Error(await response.text());
+            const data = await response.json();
+            state = {
+                rules: Array.isArray(data.rules) ? data.rules : [],
+                access: Array.isArray(data.access) ? data.access : [],
+                hosts: Array.isArray(data.hosts) ? data.hosts : []
+            };
+            renderDropdowns();
+            renderRules();
+        }
+
+        load().catch(error => $('#message').text('Error: ' + error.message));
+    </script>
+</body>
+</html>

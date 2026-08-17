@@ -1,0 +1,46 @@
+{
+  "id": "path-access-control",
+  "name": "Path Access Control",
+  "author": "IloveeCobrakai",
+  "author_contact": "https://github.com/IloveeCobrakai",
+  "description": "Apply existing IP/CIDR access rules to individual paths of tagged proxy hosts.",
+  "url": "https://github.com/IloveeCobrakai/zoraxy-path-access-control",
+  "type": 0,
+  "version_major": 1,
+  "version_minor": 0,
+  "version_patch": 1,
+  "static_capture_paths": null,
+  "static_capture_ingress": "",
+  "dynamic_capture_sniff": "/path-access-sniff",
+  "dynamic_capture_ingress": "/path-access-capture",
+  "ui_path": "/ui",
+  "subscription_path": "",
+  "subscriptions_events": null,
+  "permitted_api_endpoints": [
+    {
+      "method": "GET",
+      "endpoint": "/plugin/api/access/list",
+      "reason": "Loads existing access rules for path checks"
+    },
+    {
+      "method": "POST",
+      "endpoint": "/plugin/api/proxy/list",
+      "reason": "Lists configured HTTP proxy hosts for rule selection"
+    },
+    {
+      "method": "POST",
+      "endpoint": "/plugin/api/proxy/setTags",
+      "reason": "Assigns this router plugin to hosts with path access rules"
+    },
+    {
+      "method": "GET",
+      "endpoint": "/plugin/api/plugins/groups/list",
+      "reason": "Checks the plugin routing group"
+    },
+    {
+      "method": "POST",
+      "endpoint": "/plugin/api/plugins/groups/add",
+      "reason": "Adds this plugin to its routing group"
+    }
+  ]
+}

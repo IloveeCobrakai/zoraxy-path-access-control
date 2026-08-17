@@ -1,0 +1,25 @@
+# Build artifacts
+zoraxy-path-access-control
+path-access-control_*
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+*.test
+*.out
+
+# Local runtime state
+path_access_rules.json
+.path-access-*.tmp
+
+# Go workspace and local environment
+go.work
+go.work.sum
+.env
+
+# Editors and operating systems
+.idea/
+.vscode/
+.DS_Store
+Thumbs.db
